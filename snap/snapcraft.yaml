@@ -1,0 +1,69 @@
+name: authenticator
+adopt-info: authenticator
+grade: stable # must be 'stable' to release into candidate/stable channels
+confinement: strict
+base: core20
+architectures:
+  - build-on: amd64
+  - build-on: arm64
+
+slots:
+  # for GtkApplication registration
+  authenticator:
+    interface: dbus
+    bus: session
+    name: com.github.bilelmoussaoui.Authenticator
+
+apps:
+  authenticator:
+    extensions: [gnome-3-38]
+    command: authenticator
+    common-id: com.github.bilelmoussaoui.Authenticator.desktop
+    desktop: usr/share/applications/com.github.bilelmoussaoui.Authenticator.desktop
+    plugs:
+      - gsettings
+      - home
+      - network
+      - screencast-legacy
+
+parts:
+  zbar:
+    source: git://git.linuxtv.org/zbar.git
+    source-depth: 1
+    source-branch: stable-0.21
+    plugin: autotools
+    autotools-configure-parameters:
+      - --without-qt
+      - --without-gtk
+      - --without-xv
+      - --without-imagemagick
+      - --disable-video
+      - --without-java
+      - --with-python2=no
+      - --with-doc=no
+      - --with-introspection=no
+      - --enable-codes=qrcode
+      - --without-python
+    
+  pyzbar:
+    after: [zbar]
+    plugin: python
+    python-packages:
+      - pyzbar
+      - pyotp
+      - pillow
+      - pyfavicon
+      - yoyo-migrations
+
+  authenticator:
+    after: [zbar]
+    source: https://gitlab.gnome.org/World/Authenticator.git
+    plugin: meson
+    meson-parameters:
+      - --prefix=/snap/authenticator/current/usr
+    parse-info: [usr/share/metainfo/com.github.bilelmoussaoui.Authenticator.metainfo.xml]
+    organize:
+      snap/authenticator/current/usr: usr
+    override-pull: |
+      snapcraftctl pull
+      snapcraftctl set-version $(git describe --tags --abbrev=10)
