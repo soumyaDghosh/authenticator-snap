@@ -17,8 +17,8 @@ slots:
 apps:
   authenticator:
     extensions: [gnome-3-38]
-    command: authenticator
-    common-id: com.github.bilelmoussaoui.Authenticator.desktop
+    command: usr/bin/authenticator
+    common-id: com.github.bilelmoussaoui.Authenticator
     desktop: usr/share/applications/com.github.bilelmoussaoui.Authenticator.desktop
     plugs:
       - gsettings
@@ -58,12 +58,14 @@ parts:
   authenticator:
     after: [zbar]
     source: https://gitlab.gnome.org/World/Authenticator.git
+    source-tag: '3.32.2'
     plugin: meson
     meson-parameters:
       - --prefix=/snap/authenticator/current/usr
-    parse-info: [usr/share/metainfo/com.github.bilelmoussaoui.Authenticator.metainfo.xml]
+    parse-info: [usr/share/metainfo/com.github.bilelmoussaoui.Authenticator.appdata.xml]
     organize:
       snap/authenticator/current/usr: usr
     override-pull: |
       snapcraftctl pull
       snapcraftctl set-version $(git describe --tags --abbrev=10)
+      sed -i.bak -e 's|0.0|1|g' src/authenticator.py.in
