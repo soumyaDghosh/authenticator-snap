@@ -2,7 +2,7 @@ name: authenticator
 adopt-info: authenticator
 grade: stable # must be 'stable' to release into candidate/stable channels
 confinement: strict
-base: core20
+base: core22
 architectures:
   - build-on: amd64
   - build-on: arm64
@@ -12,14 +12,18 @@ slots:
   authenticator:
     interface: dbus
     bus: session
-    name: com.github.bilelmoussaoui.Authenticator
+    name: com.bilelmoussaoui.Authenticator
+
+layout:
+  /usr/share/authenticator:
+    symlink: $SNAP/usr/share/authenticator
 
 apps:
   authenticator:
-    extensions: [gnome-3-38]
+    extensions: [gnome]
     command: usr/bin/authenticator
-    common-id: com.github.bilelmoussaoui.Authenticator
-    desktop: usr/share/applications/com.github.bilelmoussaoui.Authenticator.desktop
+    common-id: com.bilelmoussaoui.Authenticator
+    desktop: usr/share/applications/com.belmoussaoui.Authenticator.desktop
     plugs:
       - gsettings
       - home
@@ -30,9 +34,10 @@ parts:
   zbar:
     source: git://git.linuxtv.org/zbar.git
     source-depth: 1
-    source-branch: stable-0.21
+    #source-branch: stable-0.21
     plugin: autotools
     autotools-configure-parameters:
+      - --prefix=/usr
       - --without-qt
       - --without-gtk
       - --without-xv
@@ -40,32 +45,57 @@ parts:
       - --disable-video
       - --without-java
       - --with-python2=no
-      - --with-doc=no
-      - --with-introspection=no
       - --enable-codes=qrcode
-      - --without-python
-    
-  pyzbar:
-    after: [zbar]
-    plugin: python
-    python-packages:
-      - pyzbar
-      - pyotp
-      - pillow
-      - pyfavicon
-      - yoyo-migrations
+ 
+  rustup:
+    plugin: nil
+    build-packages: [wget]
+    build-environment:
+      - RUSTUP_HOME: $CRAFT_PART_INSTALL/usr/share/rust
+      - CARGO_HOME: $CRAFT_PART_INSTALL/usr/share/rust
+      - CARGO_BUILD_JOBS: $CRAFT_PARALLEL_BUILD_COUNT
+    override-pull: |
+      wget https://sh.rustup.rs -O $CRAFT_PART_SRC/rustup-init.sh
+      chmod +x $CRAFT_PART_SRC/rustup-init.sh
+    override-build: |
+      $CRAFT_PART_SRC/rustup-init.sh -y --no-modify-path
+      mkdir -p $CRAFT_PART_INSTALL/usr/bin
+      for i in `ls $RUSTUP_HOME/bin/`; do
+        ln -s ../share/rust/bin/$i $CRAFT_PART_INSTALL/usr/bin/$i
+      done
+    override-prime: |
+      echo 'Skip Prime'
 
   authenticator:
-    after: [zbar]
+    after: [rustup, zbar]
     source: https://gitlab.gnome.org/World/Authenticator.git
-    source-tag: '3.32.2'
+    source-tag: '4.2.0'
     plugin: meson
     meson-parameters:
-      - --prefix=/snap/authenticator/current/usr
-    parse-info: [usr/share/metainfo/com.github.bilelmoussaoui.Authenticator.appdata.xml]
+      - --prefix=/usr
+    build-environment:
+      - RUSTUP_HOME: $CRAFT_STAGE/usr/share/rust
+      - CARGO_HOME: $CRAFT_STAGE/usr/share/rust
+      - CARGO_BUILD_JOBS: $CRAFT_PARALLEL_BUILD_COUNT
+    parse-info: [usr/share/metainfo/com.belmoussaoui.Authenticator.metainfo.xml]
     organize:
       snap/authenticator/current/usr: usr
+    build-packages:
+      - clang
+      - libgstreamer1.0-dev
+      - libgstreamer-plugins-bad1.0-dev
+      - libgstreamer-plugins-base1.0-dev
+      - libpipewire-0.3-dev
+      - libssl-dev
     override-pull: |
-      snapcraftctl pull
-      snapcraftctl set-version $(git describe --tags --abbrev=10)
-      sed -i.bak -e 's|0.0|1|g' src/authenticator.py.in
+      craftctl default
+      craftctl set version=$(git describe --tags --abbrev=10)
+
+  libraries:
+    after: [ authenticator ]
+    plugin: nil
+    stage-packages:
+      - libpipewire-0.3-0
+    prime:
+      - usr/lib/*/libpipewire-0.3.so.*
+
