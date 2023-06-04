@@ -6,14 +6,18 @@ base: core22
 architectures:
   - build-on: amd64
   - build-on: arm64
+  - build-on: armhf
 
 slots:
   # for GtkApplication registration
   authenticator:
     interface: dbus
     bus: session
-    name: com.bilelmoussaoui.Authenticator
-
+    name: com.belmoussaoui.Authenticator
+  gnome-keyring-svc:
+    interface: dbus
+    bus: session
+    name: org.freedesktop.secrets
 layout:
   /usr/share/authenticator:
     symlink: $SNAP/usr/share/authenticator
@@ -25,10 +29,10 @@ apps:
     common-id: com.bilelmoussaoui.Authenticator
     desktop: usr/share/applications/com.belmoussaoui.Authenticator.desktop
     plugs:
-      - gsettings
       - home
+      - removable-media
       - network
-      - screencast-legacy
+      - password-manager-service
 
 parts:
   zbar:
@@ -79,7 +83,7 @@ parts:
       - CARGO_BUILD_JOBS: $CRAFT_PARALLEL_BUILD_COUNT
     parse-info: [usr/share/metainfo/com.belmoussaoui.Authenticator.metainfo.xml]
     organize:
-      snap/authenticator/current/usr: usr
+      snap/authenticator/current: .
     build-packages:
       - clang
       - libgstreamer1.0-dev
